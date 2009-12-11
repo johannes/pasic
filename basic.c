@@ -41,6 +41,17 @@ PHP_FUNCTION(basic_compile)
 
 	RETURN_TRUE;
 }
+/* }}} */
+
+/* {{{ PHP_MINFO_FUNCTION
+ *  */
+PHP_MINFO_FUNCTION(basic)
+{
+	php_info_print_table_start();
+	php_info_print_table_header(2, "basic support", "enabled");
+	php_info_print_table_end();
+}   
+/* }}} */
 
 /* {{{ basic_functions[]
  */
@@ -73,30 +84,6 @@ zend_module_entry basic_module_entry = {
 #ifdef COMPILE_DL_BASIC
 ZEND_GET_MODULE(basic)
 #endif
-
-/* {{{ PHP_INI
- */
-/* Remove comments and fill if you need to have entries in php.ini
-PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY("basic.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_basic_globals, basic_globals)
-    STD_PHP_INI_ENTRY("basic.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_basic_globals, basic_globals)
-PHP_INI_END()
-*/
-/* }}} */
-
-/* {{{ PHP_MINFO_FUNCTION
- */
-PHP_MINFO_FUNCTION(basic)
-{
-	php_info_print_table_start();
-	php_info_print_table_header(2, "basic support", "enabled");
-	php_info_print_table_end();
-
-	/* Remove comments if you have entries in php.ini
-	DISPLAY_INI_ENTRIES();
-	*/
-}
-/* }}} */
 
 /*
  * Local variables:
