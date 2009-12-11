@@ -27,6 +27,79 @@
 #include "ext/standard/info.h"
 #include "php_basic.h"
 
+static int lookup_cv(zend_op_array *op_array, char *name, int name_len)
+{
+	int i = 0;
+	ulong hash_value = zend_inline_hash_func(name, name_len+1);
+
+	while (i < op_array->last_var) {
+		if (op_array->vars[i].hash_value == hash_value &&
+			op_array->vars[i].name_len == name_len &&
+			!memcmp(op_array->vars[i].name, name, name_len)) {
+			efree(name);
+			return i;
+		}
+		i++;
+	}
+	i = op_array->last_var;
+	op_array->last_var++;
+	if (op_array->last_var > op_array->size_var) {
+		op_array->size_var += 16; /* FIXME */
+		op_array->vars = erealloc(op_array->vars, op_array->size_var*sizeof(zend_compiled_variable));
+	}
+	op_array->vars[i].name = name;
+	op_array->vars[i].name_len = name_len;
+	op_array->vars[i].hash_value = hash_value;
+	return i;
+}
+
+static int basic_regitster_function(char *name, int name_len, zend_op *op)
+{
+	zend_op_array func;
+
+	init_op_array(&func, ZEND_USER_FUNCTION, INITIAL_OP_ARRAY_SIZE TSRMLS_CC);
+	func.function_name = estrndup(name, name_len);
+	func.return_reference = 0;
+	func.pass_rest_by_reference = 0;
+
+	func.scope = NULL;
+	func.prototype = NULL;
+
+	func.line_start = 0;
+	zend_op *opline = get_next_op(&func TSRMLS_CC);
+	opline->opcode = ZEND_NOP;
+	SET_UNUSED(opline->op1);
+	SET_UNUSED(opline->op2);
+/*
+	opline = get_next_op(&func TSRMLS_CC);
+	opline->opcode = ZEND_ASSIGN;
+	opline->op1.op_type = IS_CV;
+	opline->op1.u.var = lookup_cv(&func, "v", 1);
+	opline->op2.op_type = IS_CONST;
+	INIT_ZVAL(opline->op2.u.constant);
+	ZVAL_STRING(&opline->op2.u.constant, "test", 1);
+*/
+	opline = get_next_op(&func TSRMLS_CC);
+	opline->opcode = ZEND_ECHO;
+	opline->op1.op_type = IS_CONST;
+	INIT_ZVAL(opline->op1.u.constant);
+	ZVAL_STRING(&opline->op1.u.constant, "test", 1);
+	SET_UNUSED(opline->op2);
+
+	opline = get_next_op(&func TSRMLS_CC);
+	opline->opcode = ZEND_RETURN;
+	opline->op1.op_type = IS_CONST;
+	INIT_ZVAL(opline->op1.u.constant);
+	ZVAL_STRING(&opline->op1.u.constant, "test", 1);
+	SET_UNUSED(opline->op2);
+
+
+	pass_two(&func TSRMLS_CC);
+
+	zend_hash_update(EG(function_table), name, name_len+1, &func, sizeof(zend_op_array), NULL);
+
+}
+
 /* {{{ proto string basic_compile(string function_name, string filename)
    compile filename into function function_name */
 PHP_FUNCTION(basic_compile)
@@ -39,6 +112,7 @@ PHP_FUNCTION(basic_compile)
 		return;
 	}
 
+	basic_regitster_function(arg,arg_len,NULL);
 	RETURN_TRUE;
 }
 /* }}} */
@@ -55,7 +129,7 @@ PHP_MINFO_FUNCTION(basic)
 
 /* {{{ basic_functions[]
  */
-const zend_function_entry basic_functions[] = {
+const zend_function_entry basic_funcs[] = {
 	PHP_FE(basic_compile,	NULL)
 	{NULL, NULL, NULL}
 };
@@ -68,7 +142,7 @@ zend_module_entry basic_module_entry = {
 	STANDARD_MODULE_HEADER,
 #endif
 	"basic",
-	basic_functions,
+	basic_funcs,
 	NULL,
 	NULL,
 	NULL,
