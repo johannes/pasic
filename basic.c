@@ -175,7 +175,7 @@ PHP_MINIT_FUNCTION(BASIC)
 PHP_MINFO_FUNCTION(basic)
 {
 	php_info_print_table_start();
-	php_info_print_table_header(2, "basic support", "enabled");
+	php_info_print_table_header(2, "BASIC support", "enabled");
 	php_info_print_table_end();
 }   
 /* }}} */
