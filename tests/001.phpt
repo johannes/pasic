@@ -5,8 +5,9 @@ Simple PRINT test
 --FILE--
 <?php 
 basic_compile("t001", __DIR__.'/001.bas');
-t001();
+var_dump(t001());
 ?>
 --EXPECT--
 HALLO WELT
 ENDE
+NULL
