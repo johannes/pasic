@@ -110,8 +110,8 @@ static int basic_compile_line(zend_op_array *op, char *line)
 	opline->lineno = lineno;
 	opline->opcode = ZEND_NOP;
 
-	token = strtok(line, " \t");
-	token = strtok(NULL, " \t");
+	token = strtok(line, " \t\n\r");
+	token = strtok(NULL, " \t\n\r");
 
 	if (!token) {
 		return SUCCESS;
@@ -151,7 +151,7 @@ static int basic_compile_line(zend_op_array *op, char *line)
 		} else {
 			return FAILURE;
 		}
-	} else if (memcmp(token, "END\n", sizeof("END\n")) == 0) {
+	} else if (memcmp(token, "END", sizeof("END")) == 0) {
 		opline->opcode = ZEND_RETURN;
 		opline->op1.op_type = IS_CONST;
 		INIT_ZVAL(opline->op1.u.constant);
