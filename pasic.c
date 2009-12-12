@@ -27,9 +27,6 @@
 #include "ext/standard/info.h"
 #include "php_pasic.h"
 
-#define LAST_OPCODE ZEND_DECLARE_LAMBDA_FUNCTION
-#define JMP_DOWN (LAST_OPCODE + 1)
-
 static zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
 static void pasic_init_op_array(zend_op_array *op) /* {{{ */
@@ -109,14 +106,8 @@ static int pasic_compile_line(zend_op_array *op, char *line) /* {{{ */
 			return FAILURE;
 		}
 
-		if (target < lineno) {
+		if (target != lineno) {
 			opline->opcode = ZEND_JMP;
-			opline->op1.u.opline_num = find_opline_for_lineno(op, target);
-			if (!opline->op1.u.jmp_addr) {
-				return FAILURE;
-			}
-		} else if (target >lineno) {
-			opline->opcode = JMP_DOWN;
 			opline->extended_value = target;
 		} else {
 			return FAILURE;
@@ -138,9 +129,8 @@ static int fix_jmps(zend_op_array *op) /* {{{ */
 {
 	int i;
 	for (i = 0; i < op->last; i++) {
-		if (op->opcodes[i].opcode == JMP_DOWN) {
+		if (op->opcodes[i].opcode == ZEND_JMP) {
 			zend_op *opline = &op->opcodes[i];
-			opline->opcode = ZEND_JMP;
 			opline->op1.u.opline_num = find_opline_for_lineno(op, opline->extended_value);
 			if (!opline->op1.u.jmp_addr) {
 				return FAILURE;
