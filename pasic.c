@@ -32,7 +32,7 @@
 
 static zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
-static void pasic_init_op_array(zend_op_array *op)
+static void pasic_init_op_array(zend_op_array *op) /* {{{ */
 {
 	init_op_array(op, ZEND_USER_FUNCTION, INITIAL_OP_ARRAY_SIZE TSRMLS_CC);
 	op->return_reference = 0;
@@ -43,8 +43,9 @@ static void pasic_init_op_array(zend_op_array *op)
 
 	op->line_start = 1;
 }
+/* }}} */
 
-static uint find_opline_for_lineno(zend_op_array *op, uint lineno)
+static uint find_opline_for_lineno(zend_op_array *op, uint lineno) /* {{{ */
 {
 	uint i;
 	for (i = 0; i < op->last; i++) {
@@ -54,8 +55,9 @@ static uint find_opline_for_lineno(zend_op_array *op, uint lineno)
 	}
 	return 0;
 }
+/* }}} */
 
-static int pasic_compile_line(zend_op_array *op, char *line)
+static int pasic_compile_line(zend_op_array *op, char *line) /* {{{ */
 {
 	zend_op *opline;
 	char *token;
@@ -130,8 +132,9 @@ static int pasic_compile_line(zend_op_array *op, char *line)
 
 	return SUCCESS;
 }
+/* }}} */
 
-static int fix_jmps(zend_op_array *op)
+static int fix_jmps(zend_op_array *op) /* {{{ */
 {
 	int i;
 	for (i = 0; i < op->last; i++) {
@@ -146,9 +149,9 @@ static int fix_jmps(zend_op_array *op)
 	}
 	return SUCCESS;
 }
+/* }}} */
 
-
-static zend_op_array *pasic_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
+static zend_op_array *pasic_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC) /* {{{ */
 {
 	zend_op_array *op;
 	zend_op *opline;
@@ -190,7 +193,9 @@ static zend_op_array *pasic_compile_file(zend_file_handle *file_handle, int type
 	pass_two(op TSRMLS_CC);
 	return op;
 }
+/* }}} */
 
+/* {{{ PHP_MINIT_FUNCTION */
 PHP_MINIT_FUNCTION(pasic)
 {
 	orig_compile_file = zend_compile_file;
@@ -198,9 +203,10 @@ PHP_MINIT_FUNCTION(pasic)
 
 	return SUCCESS;
 }
+/* }}} */
 
 /* {{{ PHP_MINFO_FUNCTION
- *  */
+ */
 PHP_MINFO_FUNCTION(pasic)
 {
 	php_info_print_table_start();
