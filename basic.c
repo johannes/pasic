@@ -58,91 +58,34 @@ static int lookup_cv(zend_op_array *op_array, char *name, int name_len)
 	return i;
 }
 
-static int basic_regitster_function(char *name, int name_len, zend_op *op)
+static void basic_init_op_array(zend_op_array *op)
 {
-	zend_op_array func;
+	init_op_array(op, ZEND_USER_FUNCTION, INITIAL_OP_ARRAY_SIZE TSRMLS_CC);
+	op->return_reference = 0;
+	op->pass_rest_by_reference = 0;
 
-	init_op_array(&func, ZEND_USER_FUNCTION, INITIAL_OP_ARRAY_SIZE TSRMLS_CC);
-	func.function_name = estrndup(name, name_len);
-	func.return_reference = 0;
-	func.pass_rest_by_reference = 0;
+	op->scope = NULL;
+	op->prototype = NULL;
 
-	func.scope = NULL;
-	func.prototype = NULL;
+	op->line_start = 1;
+}
 
-	func.line_start = 0;
-	zend_op *opline;
-#ifdef TEST1
-	opline = get_next_op(&func TSRMLS_CC);
-	opline->opcode = ZEND_NOP;
-	SET_UNUSED(opline->op1);
-	SET_UNUSED(opline->op2);
-/*
-	opline = get_next_op(&func TSRMLS_CC);
-	opline->opcode = ZEND_ASSIGN;
-	opline->op1.op_type = IS_CV;
-	opline->op1.u.var = lookup_cv(&func, "v", 1);
-	opline->op2.op_type = IS_CONST;
-	INIT_ZVAL(opline->op2.u.constant);
-	ZVAL_STRING(&opline->op2.u.constant, "test", 1);
-*/
-	opline = get_next_op(&func TSRMLS_CC);
-	opline->opcode = ZEND_DO_FCALL;
-	opline->op1.op_type = IS_CONST;
-	INIT_ZVAL(opline->op1.u.constant);
-	ZVAL_STRINGL(&opline->op1.u.constant, "printf", sizeof("printf")-1, 1);
-	ZVAL_LONG(&opline->op2.u.constant, zend_hash_func("printf", sizeof("printf")));
-	SET_UNUSED(opline->op2);
-	opline->extended_value = 0;
-	SET_UNUSED(opline->result);
-/*	opline->result.u.var = get_temporary_variable(&opline);*/
+static void basic_compile_file(zend_op_array *op, char *file, int file_len)
+{
+	zend_op *opline;	
 
-	opline = get_next_op(&func TSRMLS_CC);
-	opline->opcode = ZEND_ECHO;
-	opline->op1.op_type = IS_CONST;
-	INIT_ZVAL(opline->op1.u.constant);
-	ZVAL_STRING(&opline->op1.u.constant, "test", 1);
-	SET_UNUSED(opline->op2);
-
-	opline = get_next_op(&func TSRMLS_CC);
+	opline = get_next_op(op TSRMLS_CC);
 	opline->opcode = ZEND_RETURN;
 	opline->op1.op_type = IS_CONST;
 	INIT_ZVAL(opline->op1.u.constant);
-	ZVAL_STRING(&opline->op1.u.constant, "test", 1);
 	SET_UNUSED(opline->op2);
-#endif
+}
 
-	zend_op *op1 = get_next_op(&func TSRMLS_CC);
-	zend_op *op2 = get_next_op(&func TSRMLS_CC);
-	zend_op *op3 = get_next_op(&func TSRMLS_CC);
-	zend_op *op4 = get_next_op(&func TSRMLS_CC);
-	zend_op *op5 = get_next_op(&func TSRMLS_CC);
-	
-
-	op1->opcode = ZEND_JMP;
-	op1->op1.u.jmp_addr = op2;
-
-	op2->opcode = ZEND_ECHO;
-	op2->op1.op_type = IS_CONST;
-	INIT_ZVAL(op2->op1.u.constant);
-	ZVAL_STRING(&op2->op1.u.constant, "test", 1);
-	SET_UNUSED(op2->op2);
-
-	op3->opcode = ZEND_JMP;
-	op3->op1.u.jmp_addr = op5;
-
-	op4->opcode = ZEND_JMP;
-	op4->op1.u.jmp_addr = op2;
-
-	op5->opcode = ZEND_RETURN;
-	op5->op1.op_type = IS_CONST;
-	INIT_ZVAL(op5->op1.u.constant);
-	ZVAL_STRING(&op5->op1.u.constant, "test", 1);
-	SET_UNUSED(op5->op2);
-
-
-	pass_two(&func TSRMLS_CC);
-	zend_hash_update(EG(function_table), name, name_len+1, &func, sizeof(zend_op_array), NULL);
+static void basic_regitster_function(char *name, int name_len, zend_op_array *op)
+{
+	op->function_name = estrndup(name, name_len);
+	pass_two(op TSRMLS_CC);
+	zend_hash_update(EG(function_table), name, name_len+1, op, sizeof(zend_op_array), NULL);
 
 }
 
@@ -150,15 +93,17 @@ static int basic_regitster_function(char *name, int name_len, zend_op *op)
    compile filename into function function_name */
 PHP_FUNCTION(basic_compile)
 {
-	char *arg = NULL;
-	int arg_len, len;
-	char *strg;
+	zend_op_array op;
+	char *name, *file;
+	int name_len, file_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &arg, &arg_len) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &name, &name_len, &file, &file_len) == FAILURE) {
 		return;
 	}
 
-	basic_regitster_function(arg,arg_len,NULL);
+	basic_init_op_array(&op);
+	basic_compile_file(&op, file, file_len);
+	basic_regitster_function(name, name_len, &op);
 	RETURN_TRUE;
 }
 /* }}} */
