@@ -27,6 +27,9 @@
 #include "ext/standard/info.h"
 #include "php_basic.h"
 
+zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
+
+
 static zend_uint get_temporary_variable(zend_op_array *op_array) 
 {
 	return (op_array->T)++ * sizeof(temp_variable);
@@ -118,13 +121,22 @@ static int basic_compile_line(zend_op_array *op, char *line)
 	return SUCCESS;
 }
 
-static int basic_compile_file(zend_op_array *op, char *file, int file_len)
+zend_op_array *basic_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
 {
-	zend_op *opline;	
+	zend_op_array *op;
+	zend_op *opline;
+	size_t filename_len = strlen(file_handle->filename);
 
-	php_stream *stream = php_stream_open_wrapper(file, "rb", REPORT_ERRORS, NULL);
+	if (filename_len > 4 && memcmp(&file_handle->filename[filename_len-4], ".bas", 4) != 0) {
+		return orig_compile_file(file_handle, type TSRMLS_CC);
+	}
+
+	op = emalloc(sizeof(zend_op_array));
+	basic_init_op_array(op);
+
+	php_stream *stream = php_stream_open_wrapper(file_handle->filename, "rb", REPORT_ERRORS, NULL);
 	if (!stream) {
-		return FAILURE;
+		return NULL;
 	}
 
 	while(!php_stream_eof(stream)) {
@@ -132,7 +144,7 @@ static int basic_compile_file(zend_op_array *op, char *file, int file_len)
 		if (php_stream_gets(stream, line, sizeof(line))) {
 			if (basic_compile_line(op, line) == FAILURE) {
 				php_stream_close(stream);
-				return FAILURE;
+				return NULL;
 			}
 		} else {
 			break;
@@ -146,37 +158,17 @@ static int basic_compile_file(zend_op_array *op, char *file, int file_len)
 	INIT_ZVAL(opline->op1.u.constant);
 	SET_UNUSED(opline->op2);
 
+	pass_two(op TSRMLS_CC);
+	return op;
+}
+
+PHP_MINIT_FUNCTION(BASIC)
+{
+	orig_compile_file = zend_compile_file;
+	zend_compile_file = basic_compile_file;
+
 	return SUCCESS;
 }
-
-static void basic_regitster_function(char *name, int name_len, zend_op_array *op)
-{
-	op->function_name = estrndup(name, name_len);
-	pass_two(op TSRMLS_CC);
-	zend_hash_update(EG(function_table), name, name_len+1, op, sizeof(zend_op_array), NULL);
-
-}
-
-/* {{{ proto string basic_compile(string function_name, string filename)
-   compile filename into function function_name */
-PHP_FUNCTION(basic_compile)
-{
-	zend_op_array op;
-	char *name, *file;
-	int name_len, file_len;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &name, &name_len, &file, &file_len) == FAILURE) {
-		return;
-	}
-
-	basic_init_op_array(&op);
-	if (basic_compile_file(&op, file, file_len) == FAILURE) {
-		RETURN_FALSE;
-	}
-	basic_regitster_function(name, name_len, &op);
-	RETURN_TRUE;
-}
-/* }}} */
 
 /* {{{ PHP_MINFO_FUNCTION
  *  */
@@ -188,14 +180,6 @@ PHP_MINFO_FUNCTION(basic)
 }   
 /* }}} */
 
-/* {{{ basic_functions[]
- */
-const zend_function_entry basic_funcs[] = {
-	PHP_FE(basic_compile,	NULL)
-	{NULL, NULL, NULL}
-};
-/* }}} */
-
 /* {{{ basic_module_entry
  */
 zend_module_entry basic_module_entry = {
@@ -203,8 +187,8 @@ zend_module_entry basic_module_entry = {
 	STANDARD_MODULE_HEADER,
 #endif
 	"basic",
-	basic_funcs,
 	NULL,
+	PHP_MINIT(BASIC),
 	NULL,
 	NULL,
 	NULL,
