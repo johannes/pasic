@@ -16,7 +16,7 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id: header 252479 2008-02-07 19:39:50Z iliaa $ */
+/* $Id$ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -30,39 +30,7 @@
 #define LAST_OPCODE ZEND_DECLARE_LAMBDA_FUNCTION
 #define JMP_DOWN (LAST_OPCODE + 1)
 
-zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
-
-
-static zend_uint get_temporary_variable(zend_op_array *op_array) 
-{
-	return (op_array->T)++ * sizeof(temp_variable);
-}
-
-static int lookup_cv(zend_op_array *op_array, char *name, int name_len)
-{
-	int i = 0;
-	ulong hash_value = zend_inline_hash_func(name, name_len+1);
-
-	while (i < op_array->last_var) {
-		if (op_array->vars[i].hash_value == hash_value &&
-			op_array->vars[i].name_len == name_len &&
-			!memcmp(op_array->vars[i].name, name, name_len)) {
-			efree(name);
-			return i;
-		}
-		i++;
-	}
-	i = op_array->last_var;
-	op_array->last_var++;
-	if (op_array->last_var > op_array->size_var) {
-		op_array->size_var += 16; /* FIXME */
-		op_array->vars = erealloc(op_array->vars, op_array->size_var*sizeof(zend_compiled_variable));
-	}
-	op_array->vars[i].name = name;
-	op_array->vars[i].name_len = name_len;
-	op_array->vars[i].hash_value = hash_value;
-	return i;
-}
+static zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
 static void basic_init_op_array(zend_op_array *op)
 {
@@ -156,6 +124,8 @@ static int basic_compile_line(zend_op_array *op, char *line)
 		opline->op1.op_type = IS_CONST;
 		INIT_ZVAL(opline->op1.u.constant);
 		SET_UNUSED(opline->op2);
+	} else {
+		return FAILURE;
 	}
 
 	return SUCCESS;
