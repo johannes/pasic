@@ -25,14 +25,14 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
-#include "php_basic.h"
+#include "php_pasic.h"
 
 #define LAST_OPCODE ZEND_DECLARE_LAMBDA_FUNCTION
 #define JMP_DOWN (LAST_OPCODE + 1)
 
 static zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
-static void basic_init_op_array(zend_op_array *op)
+static void pasic_init_op_array(zend_op_array *op)
 {
 	init_op_array(op, ZEND_USER_FUNCTION, INITIAL_OP_ARRAY_SIZE TSRMLS_CC);
 	op->return_reference = 0;
@@ -55,7 +55,7 @@ static uint find_opline_for_lineno(zend_op_array *op, uint lineno)
 	return 0;
 }
 
-static int basic_compile_line(zend_op_array *op, char *line)
+static int pasic_compile_line(zend_op_array *op, char *line)
 {
 	zend_op *opline;
 	char *token;
@@ -148,7 +148,7 @@ static int fix_jmps(zend_op_array *op)
 }
 
 
-static zend_op_array *basic_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
+static zend_op_array *pasic_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
 {
 	zend_op_array *op;
 	zend_op *opline;
@@ -159,7 +159,7 @@ static zend_op_array *basic_compile_file(zend_file_handle *file_handle, int type
 	}
 
 	op = emalloc(sizeof(zend_op_array));
-	basic_init_op_array(op);
+	pasic_init_op_array(op);
 
 	php_stream *stream = php_stream_open_wrapper(file_handle->filename, "rb", REPORT_ERRORS, NULL);
 	if (!stream) {
@@ -169,7 +169,7 @@ static zend_op_array *basic_compile_file(zend_file_handle *file_handle, int type
 	while(!php_stream_eof(stream)) {
 		char line[1024];
 		if (php_stream_gets(stream, line, sizeof(line))) {
-			if (basic_compile_line(op, line) == FAILURE) {
+			if (pasic_compile_line(op, line) == FAILURE) {
 				php_stream_close(stream);
 				return NULL;
 			}
@@ -191,37 +191,37 @@ static zend_op_array *basic_compile_file(zend_file_handle *file_handle, int type
 	return op;
 }
 
-PHP_MINIT_FUNCTION(BASIC)
+PHP_MINIT_FUNCTION(pasic)
 {
 	orig_compile_file = zend_compile_file;
-	zend_compile_file = basic_compile_file;
+	zend_compile_file = pasic_compile_file;
 
 	return SUCCESS;
 }
 
 /* {{{ PHP_MINFO_FUNCTION
  *  */
-PHP_MINFO_FUNCTION(basic)
+PHP_MINFO_FUNCTION(pasic)
 {
 	php_info_print_table_start();
-	php_info_print_table_header(2, "BASIC support", "enabled");
+	php_info_print_table_header(2, "PASIC support", "enabled");
 	php_info_print_table_end();
 }   
 /* }}} */
 
-/* {{{ basic_module_entry
+/* {{{ pasic_module_entry
  */
-zend_module_entry basic_module_entry = {
+zend_module_entry pasic_module_entry = {
 #if ZEND_MODULE_API_NO >= 20010901
 	STANDARD_MODULE_HEADER,
 #endif
-	"basic",
+	"pasic",
 	NULL,
-	PHP_MINIT(BASIC),
+	PHP_MINIT(pasic),
 	NULL,
 	NULL,
 	NULL,
-	PHP_MINFO(basic),
+	PHP_MINFO(pasic),
 #if ZEND_MODULE_API_NO >= 20010901
 	"0.1",
 #endif
@@ -229,8 +229,8 @@ zend_module_entry basic_module_entry = {
 };
 /* }}} */
 
-#ifdef COMPILE_DL_BASIC
-ZEND_GET_MODULE(basic)
+#ifdef COMPILE_DL_PASIC
+ZEND_GET_MODULE(pasic)
 #endif
 
 /*

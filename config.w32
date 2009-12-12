@@ -1,13 +1,9 @@
 // $Id$
 // vim:ft=javascript
 
-// If your extension references something external, use ARG_WITH
-// ARG_WITH("basic", "for basic support", "no");
-
-// Otherwise, use ARG_ENABLE
-// ARG_ENABLE("basic", "enable basic support", "no");
+ARG_ENABLE("pasic", "enable pasic support", "no");
 
 if (PHP_BASIC != "no") {
-	EXTENSION("basic", "basic.c");
+	EXTENSION("pasic", "pasic.c");
 }
 

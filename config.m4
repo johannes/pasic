@@ -1,9 +1,9 @@
 dnl $Id$
-dnl config.m4 for extension basic
+dnl config.m4 for extension pasic
 
-PHP_ARG_ENABLE(basic, whether to enable basic support,
-[  --enable-basic           Enable basic support])
+PHP_ARG_ENABLE(pasic, whether to enable pasic support,
+[  --enable-pasic           Enable pasic support])
 
-if test "$PHP_BASIC" != "no"; then
-  PHP_NEW_EXTENSION(basic, basic.c, $ext_shared)
+if test "$PHP_PASIC" != "no"; then
+  PHP_NEW_EXTENSION(pasic, pasic.c, $ext_shared)
 fi

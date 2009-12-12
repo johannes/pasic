@@ -18,21 +18,21 @@
 
 /* $Id: header 252479 2008-02-07 19:39:50Z iliaa $ */
 
-#ifndef PHP_BASIC_H
-#define PHP_BASIC_H
+#ifndef PHP_PASIC_H
+#define PHP_PASIC_H
 
-extern zend_module_entry basic_module_entry;
-#define phpext_basic_ptr &basic_module_entry
+extern zend_module_entry pasic_module_entry;
+#define phpext_pasic_ptr &pasic_module_entry
 
 #ifdef PHP_WIN32
-#	define PHP_BASIC_API __declspec(dllexport)
+#	define PHP_PASIC_API __declspec(dllexport)
 #elif defined(__GNUC__) && __GNUC__ >= 4
-#	define PHP_BASIC_API __attribute__ ((visibility("default")))
+#	define PHP_PASIC_API __attribute__ ((visibility("default")))
 #else
-#	define PHP_BASIC_API
+#	define PHP_PASIC_API
 #endif
 
-#endif	/* PHP_BASIC_H */
+#endif	/* PHP_PASIC_H */
 
 /*
  * Local variables:

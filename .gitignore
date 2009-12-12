@@ -10,7 +10,6 @@ acinclude.m4
 aclocal.m4
 autom4te.cache/
 build/
-config.*
 configure
 configure.in
 install-sh
@@ -20,3 +19,11 @@ missing
 mkinstalldirs
 modules/
 run-tests.php
+config.guess
+config.h
+config.h.in
+config.log
+config.nice
+config.status
+config.sub
+tmp-php.ini
