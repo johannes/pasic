@@ -70,15 +70,83 @@ static void basic_init_op_array(zend_op_array *op)
 	op->line_start = 1;
 }
 
-static void basic_compile_file(zend_op_array *op, char *file, int file_len)
+static int basic_compile_line(zend_op_array *op, char *line)
+{
+	zend_op *opline;
+	char *token;
+	int lineno = atoi(line);
+
+	if (!lineno) {
+		if (line[0] == 'R' && line[1] == 'E' && line[2] == 'M') {
+			return SUCCESS;
+		} else {
+			return FAILURE;
+		}
+	}
+	
+	if (lineno <= op->last) {
+		php_error_docref(NULL, E_WARNING TSRMLS_CC, "Can not redeclare line %d, expecting line >%d", lineno, op->last);
+		return FAILURE;
+	}
+
+	while ((opline = get_next_op(op TSRMLS_CC)) && op->last < lineno) {
+		opline->opcode = ZEND_NOP;
+	}
+
+	token = strtok(line, " \t");
+	token = strtok(NULL, " \t");
+
+	if (!token) {
+		return SUCCESS;
+	}
+
+	if (memcmp(token, "PRINT", sizeof("PRINT")) == 0) {
+		int token_len;
+		token = strtok(NULL, "\"");
+		if (!token) {
+			return FAILURE;
+		}
+
+		opline->opcode = ZEND_ECHO;
+		opline->op1.op_type = IS_CONST;
+		ZVAL_STRING(&opline->op1.u.constant, token, 1);
+		SET_UNUSED(opline->op2);
+	}
+
+
+
+	return SUCCESS;
+}
+
+static int basic_compile_file(zend_op_array *op, char *file, int file_len)
 {
 	zend_op *opline;	
+
+	php_stream *stream = php_stream_open_wrapper(file, "rb", REPORT_ERRORS, NULL);
+	if (!stream) {
+		return FAILURE;
+	}
+
+	while(!php_stream_eof(stream)) {
+		char line[1024];
+		if (php_stream_gets(stream, line, sizeof(line))) {
+			if (basic_compile_line(op, line) == FAILURE) {
+				php_stream_close(stream);
+				return FAILURE;
+			}
+		} else {
+			break;
+		}
+	}
+	php_stream_close(stream);
 
 	opline = get_next_op(op TSRMLS_CC);
 	opline->opcode = ZEND_RETURN;
 	opline->op1.op_type = IS_CONST;
 	INIT_ZVAL(opline->op1.u.constant);
 	SET_UNUSED(opline->op2);
+
+	return SUCCESS;
 }
 
 static void basic_regitster_function(char *name, int name_len, zend_op_array *op)
@@ -102,7 +170,9 @@ PHP_FUNCTION(basic_compile)
 	}
 
 	basic_init_op_array(&op);
-	basic_compile_file(&op, file, file_len);
+	if (basic_compile_file(&op, file, file_len) == FAILURE) {
+		RETURN_FALSE;
+	}
 	basic_regitster_function(name, name_len, &op);
 	RETURN_TRUE;
 }

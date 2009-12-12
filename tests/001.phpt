@@ -5,9 +5,10 @@ Simple PRINT test
 --FILE--
 <?php 
 basic_compile("t001", __DIR__.'/001.bas');
-var_dump(t001());
+$retval = t001();
+echo "\n";
+var_dump($retval);
 ?>
 --EXPECT--
 HALLO WELT
-ENDE
 NULL
