@@ -27,6 +27,9 @@
 #include "ext/standard/info.h"
 #include "php_basic.h"
 
+#define LAST_OPCODE ZEND_DECLARE_LAMBDA_FUNCTION
+#define JMP_DOWN (LAST_OPCODE + 1)
+
 zend_op_array *(*orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
 
@@ -73,6 +76,17 @@ static void basic_init_op_array(zend_op_array *op)
 	op->line_start = 1;
 }
 
+static uint find_opline_for_lineno(zend_op_array *op, uint lineno)
+{
+	uint i;
+	for (i = 0; i < op->last; i++) {
+		if (op->opcodes[i].lineno >= lineno) {
+			return i;
+		}
+	}
+	return 0;
+}
+
 static int basic_compile_line(zend_op_array *op, char *line)
 {
 	zend_op *opline;
@@ -92,9 +106,9 @@ static int basic_compile_line(zend_op_array *op, char *line)
 		return FAILURE;
 	}
 
-	while ((opline = get_next_op(op TSRMLS_CC)) && op->last < lineno) {
-		opline->opcode = ZEND_NOP;
-	}
+	opline = get_next_op(op TSRMLS_CC);
+	opline->lineno = lineno;
+	opline->opcode = ZEND_NOP;
 
 	token = strtok(line, " \t");
 	token = strtok(NULL, " \t");
@@ -104,7 +118,6 @@ static int basic_compile_line(zend_op_array *op, char *line)
 	}
 
 	if (memcmp(token, "PRINT", sizeof("PRINT")) == 0) {
-		int token_len;
 		token = strtok(NULL, "\"");
 		if (!token) {
 			return FAILURE;
@@ -114,14 +127,58 @@ static int basic_compile_line(zend_op_array *op, char *line)
 		opline->op1.op_type = IS_CONST;
 		ZVAL_STRING(&opline->op1.u.constant, token, 1);
 		SET_UNUSED(opline->op2);
+	} else if (memcmp(token, "GOTO", sizeof("GOTO")) == 0) {
+		int target;
+		token = strtok(NULL, " \t\n");
+		if (!token) {
+			return FAILURE;
+		}
+
+		target = atoi(token);
+		if (!target) {
+			return FAILURE;
+		}
+
+		if (target < lineno) {
+			opline->opcode = ZEND_JMP;
+			opline->op1.u.opline_num = find_opline_for_lineno(op, target);
+			if (!opline->op1.u.jmp_addr) {
+				return FAILURE;
+			}
+		} else if (target >lineno) {
+			opline->opcode = JMP_DOWN;
+			opline->extended_value = target;
+		} else {
+			return FAILURE;
+		}
+	} else if (memcmp(token, "END\n", sizeof("END\n")) == 0) {
+		opline->opcode = ZEND_RETURN;
+		opline->op1.op_type = IS_CONST;
+		INIT_ZVAL(opline->op1.u.constant);
+		SET_UNUSED(opline->op2);
 	}
-
-
 
 	return SUCCESS;
 }
 
-zend_op_array *basic_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
+static int fix_jmps(zend_op_array *op)
+{
+	int i;
+	for (i = 0; i < op->last; i++) {
+		if (op->opcodes[i].opcode == JMP_DOWN) {
+			zend_op *opline = &op->opcodes[i];
+			opline->opcode = ZEND_JMP;
+			opline->op1.u.opline_num = find_opline_for_lineno(op, opline->extended_value);
+			if (!opline->op1.u.jmp_addr) {
+				return FAILURE;
+			}
+		}
+	}
+	return SUCCESS;
+}
+
+
+static zend_op_array *basic_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
 {
 	zend_op_array *op;
 	zend_op *opline;
@@ -157,6 +214,8 @@ zend_op_array *basic_compile_file(zend_file_handle *file_handle, int type TSRMLS
 	opline->op1.op_type = IS_CONST;
 	INIT_ZVAL(opline->op1.u.constant);
 	SET_UNUSED(opline->op2);
+
+	fix_jmps(op);
 
 	pass_two(op TSRMLS_CC);
 	return op;
