@@ -1,21 +1,12 @@
 --TEST--
-Check for basic presence
+Simple PRINT test
 --SKIPIF--
 <?php if (!extension_loaded("basic")) print "skip"; ?>
 --FILE--
 <?php 
-echo "basic extension is available";
-/*
-	you can add regression tests for your extension here
-
-  the output of your test code has to be equal to the
-  text in the --EXPECT-- section below for the tests
-  to pass, differences between the output and the
-  expected text are interpreted as failure
-
-	see php5/README.TESTING for further information on
-  writing regression tests
-*/
+basic_compile("t001", __DIR__.'/001.bas');
+t001();
 ?>
 --EXPECT--
-basic extension is available
+HALLO WELT
+ENDE
