@@ -27,6 +27,11 @@
 #include "ext/standard/info.h"
 #include "php_basic.h"
 
+static zend_uint get_temporary_variable(zend_op_array *op_array) 
+{
+	return (op_array->T)++ * sizeof(temp_variable);
+}
+
 static int lookup_cv(zend_op_array *op_array, char *name, int name_len)
 {
 	int i = 0;
@@ -66,7 +71,9 @@ static int basic_regitster_function(char *name, int name_len, zend_op *op)
 	func.prototype = NULL;
 
 	func.line_start = 0;
-	zend_op *opline = get_next_op(&func TSRMLS_CC);
+	zend_op *opline;
+#ifdef TEST1
+	opline = get_next_op(&func TSRMLS_CC);
 	opline->opcode = ZEND_NOP;
 	SET_UNUSED(opline->op1);
 	SET_UNUSED(opline->op2);
@@ -80,6 +87,17 @@ static int basic_regitster_function(char *name, int name_len, zend_op *op)
 	ZVAL_STRING(&opline->op2.u.constant, "test", 1);
 */
 	opline = get_next_op(&func TSRMLS_CC);
+	opline->opcode = ZEND_DO_FCALL;
+	opline->op1.op_type = IS_CONST;
+	INIT_ZVAL(opline->op1.u.constant);
+	ZVAL_STRINGL(&opline->op1.u.constant, "printf", sizeof("printf")-1, 1);
+	ZVAL_LONG(&opline->op2.u.constant, zend_hash_func("printf", sizeof("printf")));
+	SET_UNUSED(opline->op2);
+	opline->extended_value = 0;
+	SET_UNUSED(opline->result);
+/*	opline->result.u.var = get_temporary_variable(&opline);*/
+
+	opline = get_next_op(&func TSRMLS_CC);
 	opline->opcode = ZEND_ECHO;
 	opline->op1.op_type = IS_CONST;
 	INIT_ZVAL(opline->op1.u.constant);
@@ -92,10 +110,38 @@ static int basic_regitster_function(char *name, int name_len, zend_op *op)
 	INIT_ZVAL(opline->op1.u.constant);
 	ZVAL_STRING(&opline->op1.u.constant, "test", 1);
 	SET_UNUSED(opline->op2);
+#endif
+
+	zend_op *op1 = get_next_op(&func TSRMLS_CC);
+	zend_op *op2 = get_next_op(&func TSRMLS_CC);
+	zend_op *op3 = get_next_op(&func TSRMLS_CC);
+	zend_op *op4 = get_next_op(&func TSRMLS_CC);
+	zend_op *op5 = get_next_op(&func TSRMLS_CC);
+	
+
+	op1->opcode = ZEND_JMP;
+	op1->op1.u.jmp_addr = op2;
+
+	op2->opcode = ZEND_ECHO;
+	op2->op1.op_type = IS_CONST;
+	INIT_ZVAL(op2->op1.u.constant);
+	ZVAL_STRING(&op2->op1.u.constant, "test", 1);
+	SET_UNUSED(op2->op2);
+
+	op3->opcode = ZEND_JMP;
+	op3->op1.u.jmp_addr = op5;
+
+	op4->opcode = ZEND_JMP;
+	op4->op1.u.jmp_addr = op2;
+
+	op5->opcode = ZEND_RETURN;
+	op5->op1.op_type = IS_CONST;
+	INIT_ZVAL(op5->op1.u.constant);
+	ZVAL_STRING(&op5->op1.u.constant, "test", 1);
+	SET_UNUSED(op5->op2);
 
 
 	pass_two(&func TSRMLS_CC);
-
 	zend_hash_update(EG(function_table), name, name_len+1, &func, sizeof(zend_op_array), NULL);
 
 }
